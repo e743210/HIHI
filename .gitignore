@@ -1,0 +1,216 @@
+import random, pygame, sys
+from pygame.locals import *
+
+畫面更新率 = 15
+視窗寬 = 640
+視窗高 = 480
+元件大小 = 20
+assert 視窗寬 % 元件大小 == 0, "Window width must be a multiple of cell size."
+assert 視窗高 % 元件大小 == 0, "Window height must be a multiple of cell size."
+元件寬 = int(視窗寬 / 元件大小)
+元件高 = int(視窗高 / 元件大小)
+
+#             R    G    B
+白     = (255, 255, 255)
+黑     = (  0,   0,   0)
+紅       = (255,   0,   0)
+綠     = (  0, 255,   0)
+墨綠 = (  0, 155,   0)
+深灰  = ( 40,  40,  40)
+背景顏色 = 黑
+
+上 = 'up'
+下 = 'down'
+左 = 'left'
+右 = 'right'
+
+頭 = 0 # syntactic sugar: index of the worm's head
+
+def main():
+    global 畫面更新時數, 顯示屏幕, 初始標題
+
+    pygame.init()
+    畫面更新時數 = pygame.time.Clock()
+    顯示屏幕 = pygame.display.set_mode((視窗寬, 視窗高))
+    初始標題 = pygame.font.Font('freesansbold.ttf', 18)
+    pygame.display.set_caption('Wormy')
+
+    初始畫面()
+    while True:
+        執行遊戲()
+        更新畫面()
+
+
+def 執行遊戲():
+    # Set a random start point.
+    初始x值 = random.randint(5, 元件寬 - 6)
+    初始y值 = random.randint(5, 元件高 - 6)
+    蟲蟲座標 = [{'x': 初始x值,     'y': 初始y值},
+                  {'x': 初始x值 - 1, 'y': 初始y值},
+                  {'x': 初始x值 - 2, 'y': 初始y值}]
+    方向 = 右
+
+    # Start the apple in a random place.
+    果實 = 隨機出現()
+
+    while True: # main game loop
+        for event in pygame.event.get(): # event handling loop
+            if event.type == QUIT:
+                終止()
+            elif event.type == KEYDOWN:
+                if (event.key == K_LEFT or event.key == K_a) and 方向 != 右:
+                    方向 = 左
+                elif (event.key == K_RIGHT or event.key == K_d) and 方向 != 左:
+                    方向 = 右
+                elif (event.key == K_UP or event.key == K_w) and 方向 != 下:
+                    方向 = 上
+                elif (event.key == K_DOWN or event.key == K_s) and 方向 != 上:
+                    方向 = 下
+                elif event.key == K_ESCAPE:
+                    終止()
+
+        # check if the worm has hit itself or the edge
+        if 蟲蟲座標[頭]['x'] == -1 or 蟲蟲座標[頭]['x'] == 元件寬 or 蟲蟲座標[頭]['y'] == -1 or 蟲蟲座標[頭]['y'] == 元件高:
+            return # game over
+        for 蟲身 in 蟲蟲座標[1:]:
+            if 蟲身['x'] == 蟲蟲座標[頭]['x'] and 蟲身['y'] == 蟲蟲座標[頭]['y']:
+                return # game over
+
+        # check if worm has eaten an apply
+        if 蟲蟲座標[頭]['x'] == 果實['x'] and 蟲蟲座標[頭]['y'] == 果實['y']:
+            # don't remove worm's tail segment
+            果實 = 隨機出現() # set a new apple somewhere
+        else:
+            del 蟲蟲座標[-1] # remove worm's tail segment
+
+        # move the worm by adding a segment in the direction it is moving
+        if 方向 == 上:
+            新頭 = {'x': 蟲蟲座標[頭]['x'], 'y': 蟲蟲座標[頭]['y'] - 1}
+        elif 方向 == 下:
+            新頭 = {'x': 蟲蟲座標[頭]['x'], 'y': 蟲蟲座標[頭]['y'] + 1}
+        elif 方向 == 左:
+            新頭 = {'x': 蟲蟲座標[頭]['x'] - 1, 'y': 蟲蟲座標[頭]['y']}
+        elif 方向 == 右:
+            新頭 = {'x': 蟲蟲座標[頭]['x'] + 1, 'y': 蟲蟲座標[頭]['y']}
+        蟲蟲座標.insert(0, 新頭)
+        顯示屏幕.fill(背景顏色)
+        畫框架()
+        畫蟲蟲(蟲蟲座標)
+        畫果實(果實)
+        顯示分數(len(蟲蟲座標) - 3)
+        pygame.display.update()
+        畫面更新時數.tick(畫面更新率)
+
+def 顯示按鈕():
+    按鍵畫面 = 初始標題.render('Press a key to play.', True, 深灰)
+    按鍵版面 = 按鍵畫面.get_rect()
+    按鍵版面.topleft = (視窗寬 - 200, 視窗高 - 30)
+    顯示屏幕.blit(按鍵畫面, 按鍵版面)
+
+
+def 檢查指令():
+    if len(pygame.event.get(QUIT)) > 0:
+        終止()
+
+    鍵盤指令 = pygame.event.get(KEYUP)
+    if len(鍵盤指令) == 0:
+        return None
+    if 鍵盤指令[0].key == K_ESCAPE:
+        終止()
+    return 鍵盤指令[0].key
+
+
+def 初始畫面():
+    標題文字 = pygame.font.Font('freesansbold.ttf', 100)
+    標題畫面1 = 標題文字.render('Wormy!', True, 白, 墨綠)
+    標題畫面2 = 標題文字.render('Wormy!', True, 綠)
+
+    角度1 = 0
+    角度2 = 0
+    while True:
+        顯示屏幕.fill(背景顏色)
+        旋轉畫面1 = pygame.transform.rotate(標題畫面1, 角度1)
+        旋轉版面1 = 旋轉畫面1.get_rect()
+        旋轉版面1.center = (視窗寬 / 2, 視窗高 / 2)
+        顯示屏幕.blit(旋轉畫面1, 旋轉版面1)
+
+        旋轉畫面2 = pygame.transform.rotate(標題畫面2, 角度2)
+        旋轉版面2 = 旋轉畫面2.get_rect()
+        旋轉版面2.center = (視窗寬 / 2, 視窗高 / 2)
+        顯示屏幕.blit(旋轉畫面2, 旋轉版面2)
+
+        顯示按鈕()
+
+        if 檢查指令():
+            pygame.event.get() # clear event queue
+            return
+        pygame.display.update()
+        畫面更新時數.tick(畫面更新率)
+        角度1 += 3 # rotate by 3 degrees each frame
+        角度2 += 7 # rotate by 7 degrees each frame
+
+
+def 終止():
+    pygame.quit()
+    sys.exit()
+
+
+def 隨機出現():
+    return {'x': random.randint(0, 元件寬 - 1), 'y': random.randint(0, 元件高 - 1)}
+
+
+def 更新畫面():
+    遊戲結束文字 = pygame.font.Font('freesansbold.ttf', 150)
+    遊戲畫面 = 遊戲結束文字.render('Game', True, 白)
+    結束畫面 = 遊戲結束文字.render('Over', True, 白)
+    遊戲版面 = 遊戲畫面.get_rect()
+    結束版面 = 結束畫面.get_rect()
+    遊戲版面.midtop = (視窗寬 / 2, 10)
+    結束版面.midtop = (視窗寬 / 2, 遊戲版面.height + 10 + 25)
+
+    顯示屏幕.blit(遊戲畫面, 遊戲版面)
+    顯示屏幕.blit(結束畫面, 結束版面)
+    顯示按鈕()
+    pygame.display.update()
+    pygame.time.wait(500)
+    檢查指令() # clear out any key presses in the event queue
+
+    while True:
+        if 檢查指令():
+            pygame.event.get() # clear event queue
+            return
+
+def 顯示分數(score):
+    分數畫面 = 初始標題.render('Score: %s' % (score), True, 白)
+    分數版面 = 分數畫面.get_rect()
+    分數版面.topleft = (視窗寬 - 120, 10)
+    顯示屏幕.blit(分數畫面, 分數版面)
+
+
+def 畫蟲蟲(蟲蟲座標):
+    for 座標 in 蟲蟲座標:
+        x = 座標['x'] * 元件大小
+        y = 座標['y'] * 元件大小
+        蟲蟲片段畫面 = pygame.Rect(x, y, 元件大小, 元件大小)
+        pygame.draw.rect(顯示屏幕, 墨綠, 蟲蟲片段畫面)
+        蟲蟲版面 = pygame.Rect(x + 4, y + 4, 元件大小 - 8, 元件大小 - 8)
+        pygame.draw.rect(顯示屏幕, 綠, 蟲蟲版面)
+
+
+def 畫果實(座標):
+    x = 座標['x'] * 元件大小
+    y = 座標['y'] * 元件大小
+    果實版面 = pygame.Rect(x, y, 元件大小, 元件大小)
+    pygame.draw.rect(顯示屏幕, 紅, 果實版面)
+
+
+def 畫框架():
+    for x in range(0, 視窗寬, 元件大小): # draw vertical lines
+        pygame.draw.line(顯示屏幕, 深灰, (x, 0), (x, 視窗高))
+    for y in range(0, 視窗高, 元件大小): # draw horizontal lines
+        pygame.draw.line(顯示屏幕, 深灰, (0, y), (視窗寬, y))
+
+
+if __name__ == '__main__':
+    main()
+
